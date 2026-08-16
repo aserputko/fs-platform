@@ -1,0 +1,6 @@
+node_modules
+dist
+coverage
+.turbo
+**/src/generated/prisma
+package-lock.json

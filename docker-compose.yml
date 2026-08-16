@@ -1,0 +1,44 @@
+services:
+  identity-db:
+    image: postgres:18-alpine
+    container_name: fs-identity-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: identity
+      POSTGRES_PASSWORD: identity
+      POSTGRES_DB: identity_db
+      # Pinning PGDATA to a subdirectory keeps the named volume valid across image major versions.
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - '5432:5432'
+    volumes:
+      - identity-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U identity -d identity_db']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  be-identity-service:
+    build:
+      context: .
+      dockerfile: apps/be-identity-service/Dockerfile
+    container_name: fs-be-identity-service
+    restart: unless-stopped
+    profiles: ['full']
+    depends_on:
+      identity-db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://identity:identity@identity-db:5432/identity_db?schema=public
+      JWT_ISSUER: http://localhost:3001
+      JWT_AUDIENCE: fs-platform
+      JWT_PRIVATE_KEY_B64: ${JWT_PRIVATE_KEY_B64:-}
+      JWT_PUBLIC_KEY_B64: ${JWT_PUBLIC_KEY_B64:-}
+    ports:
+      - '3001:3001'
+
+volumes:
+  identity-db-data:

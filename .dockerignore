@@ -1,0 +1,14 @@
+node_modules
+**/node_modules
+**/dist
+**/coverage
+**/.turbo
+.turbo
+.git
+.github
+**/.env
+**/.env.*
+!**/.env.example
+**/.keys
+**/*.pem
+**/src/generated/prisma
