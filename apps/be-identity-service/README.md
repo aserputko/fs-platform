@@ -147,6 +147,7 @@ clean checkout in CI.
 | Script               | Purpose                                                  |
 | -------------------- | -------------------------------------------------------- |
 | `dev`                | Start in watch mode                                      |
+| `dev:logs`           | Watch mode, mirroring raw JSON logs to `logs/` for Loki  |
 | `build` / `start`    | Compile to `dist/`, then run it                          |
 | `keys:generate`      | Create an RS256 key pair                                 |
 | `db:generate`        | Regenerate the Prisma client into `src/generated/prisma` |
@@ -225,6 +226,53 @@ Errors are returned in one shape, with internal failures reduced to a generic me
   "path": "/auth/login",
   "timestamp": "2026-08-17T20:54:38.244Z"
 }
+```
+
+### Observability stack
+
+Logs are collected by [Grafana Alloy](https://grafana.com/docs/alloy/), stored in
+[Loki](https://grafana.com/docs/loki/) and queried in Grafana. All three run from the repository
+root behind an opt-in compose profile:
+
+```bash
+docker compose --profile observability up -d
+```
+
+| Service | URL                      |
+| ------- | ------------------------ |
+| Grafana | <http://localhost:3000>  |
+| Loki    | <http://localhost:3100>  |
+| Alloy   | <http://localhost:12345> |
+
+Grafana needs no login locally and ships with the **be-identity-service / logs** dashboard and two
+alert rules (error rate, and refresh-token replay) provisioned from
+`observability/grafana/provisioning`. The alert rules evaluate against Loki but deliver nowhere
+until a contact point is configured — their state is visible under _Alerting → Alert rules_.
+
+Alloy collects from two places, so it works whether the service runs in Docker or on the host:
+
+| Source            | How to produce it                                                            |
+| ----------------- | ---------------------------------------------------------------------------- |
+| `source="docker"` | `docker compose --profile full --profile observability up -d --build`        |
+| `source="dev"`    | `npm run dev:logs`, which tees raw JSON to `logs/be-identity-service.ndjson` |
+
+`dev:logs` forces `LOG_PRETTY=false` so the file stays machine-readable, then pipes through
+`pino-pretty` so the terminal does not. It needs `tee`, so it is macOS/Linux only; plain `npm run
+dev` is unchanged and simply does not reach Loki.
+
+The application never talks to Loki — it keeps writing to stdout, and collection happens outside
+the process. **Do not add a pino network transport**: it would put a network dependency on the hot
+path and lose buffered lines on a crash.
+
+Only `service`, `env` and `level` become Loki labels. `req.id`, `userId` and `statusCode` are
+attached as structured metadata instead, which keeps them filterable without exploding the index.
+Lines that are not JSON (Postgres, Nest CLI output) pass through unparsed.
+
+```logql
+{service="be-identity-service", level="error"}          # errors only
+{service="be-identity-service"} | status_code = `401`   # by response status
+{service="be-identity-service"} | req_id = `8e520b02-…` # every line of one request
+{service="be-identity-service"} |= `Refresh token reuse detected`
 ```
 
 ---

@@ -1,0 +1,123 @@
+logging {
+  level  = "warn"
+  format = "logfmt"
+}
+
+// ---------------------------------------------------------------------------
+// Source 1: containers started by this compose project.
+// ---------------------------------------------------------------------------
+
+discovery.docker "compose" {
+  host = "unix:///var/run/docker.sock"
+
+  filter {
+    name   = "label"
+    values = ["com.docker.compose.project=fs-platform"]
+  }
+}
+
+discovery.relabel "containers" {
+  targets = discovery.docker.compose.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "container"
+  }
+
+  // Collecting the observability stack's own output would feed it back into itself.
+  rule {
+    source_labels = ["container"]
+    regex         = "loki|alloy|grafana"
+    action        = "drop"
+  }
+}
+
+loki.source.docker "containers" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.containers.output
+  labels     = { job = "fs-platform", source = "docker" }
+  forward_to = [loki.process.pino.receiver]
+}
+
+// ---------------------------------------------------------------------------
+// Source 2: NDJSON written by `npm run dev:logs` on the host.
+// ---------------------------------------------------------------------------
+
+local.file_match "dev" {
+  path_targets = [{
+    __path__ = "/var/log/fs-platform/*.ndjson",
+    job      = "fs-platform",
+    source   = "dev",
+  }]
+}
+
+discovery.relabel "dev" {
+  targets = local.file_match.dev.targets
+
+  rule {
+    source_labels = ["__path__"]
+    regex         = ".*/([^/]+)\\.ndjson"
+    target_label  = "container"
+    replacement   = "$1"
+  }
+}
+
+loki.source.file "dev" {
+  targets    = discovery.relabel.dev.output
+  forward_to = [loki.process.pino.receiver]
+}
+
+// ---------------------------------------------------------------------------
+// Shared pipeline: parse pino NDJSON, leave everything else untouched.
+// ---------------------------------------------------------------------------
+
+loki.process "pino" {
+  forward_to = [loki.write.local.receiver]
+
+  // Postgres output and Nest CLI build noise are not JSON and must pass through as-is.
+  stage.match {
+    selector = "{job=\"fs-platform\"} |~ \"^[{]\""
+
+    stage.json {
+      expressions = {
+        level   = "level",
+        service = "service",
+        env     = "env",
+        ts      = "time",
+        req_id  = "req.id",
+        user_id = "userId",
+        // AllExceptionsFilter logs statusCode at the top level, pino-http nests it under res.
+        status_code = "statusCode || res.statusCode",
+      }
+    }
+
+    stage.timestamp {
+      source = "ts"
+      format = "RFC3339Nano"
+    }
+
+    // Only low-cardinality fields may become labels.
+    stage.labels {
+      values = {
+        level   = "",
+        service = "",
+        env     = "",
+      }
+    }
+
+    // High-cardinality fields stay queryable without exploding the index.
+    stage.structured_metadata {
+      values = {
+        req_id      = "",
+        user_id     = "",
+        status_code = "",
+      }
+    }
+  }
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

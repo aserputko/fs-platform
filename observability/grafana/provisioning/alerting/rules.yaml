@@ -1,0 +1,92 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: identity-service
+    folder: fs-platform
+    interval: 1m
+    rules:
+      - uid: fs-identity-error-rate
+        title: Identity service error rate
+        condition: threshold
+        for: 5m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: warning
+        annotations:
+          summary: be-identity-service logged more than 5 errors in the last 5 minutes.
+          runbook_url: http://localhost:3000/d/fs-identity-logs
+        data:
+          - refId: query
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: loki
+            model:
+              refId: query
+              datasource:
+                type: loki
+                uid: loki
+              queryType: instant
+              expr: sum(count_over_time({service="be-identity-service", level="error"}[5m]))
+          - refId: threshold
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: threshold
+              type: threshold
+              expression: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 5
+
+      - uid: fs-identity-refresh-token-reuse
+        title: Refresh token reuse detected
+        condition: threshold
+        # Replay of a refresh token is a security event, so it alerts on the first occurrence.
+        for: 0m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: critical
+        annotations:
+          summary: TokenService detected refresh token replay and revoked the token family.
+          runbook_url: http://localhost:3000/d/fs-identity-logs
+        data:
+          - refId: query
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: loki
+            model:
+              refId: query
+              datasource:
+                type: loki
+                uid: loki
+              queryType: instant
+              expr: sum(count_over_time({service="be-identity-service"} |= `Refresh token reuse detected` [5m]))
+          - refId: threshold
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: threshold
+              type: threshold
+              expression: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 0

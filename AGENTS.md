@@ -2,11 +2,12 @@
 
 Turborepo + npm workspaces monorepo. Node >= 22.12 (`.nvmrc` pins 24, `.npmrc` sets `engine-strict=true`).
 
-| Path                       | What it is                                                         |
-| -------------------------- | ------------------------------------------------------------------ |
-| `apps/be-identity-service` | NestJS 11 auth service (Prisma 7, PostgreSQL 18, RS256 JWT + JWKS) |
-| `packages/eslint-config`   | Shared flat ESLint configs (`base.js`, `nest.js`)                  |
-| `packages/tsconfig`        | Shared TS configs (`base.json`, `nestjs.json`)                     |
+| Path                       | What it is                                                             |
+| -------------------------- | ---------------------------------------------------------------------- |
+| `apps/be-identity-service` | NestJS 11 auth service (Prisma 7, PostgreSQL 18, RS256 JWT + JWKS)     |
+| `packages/eslint-config`   | Shared flat ESLint configs (`base.js`, `nest.js`)                      |
+| `packages/tsconfig`        | Shared TS configs (`base.json`, `nestjs.json`)                         |
+| `observability/`           | Loki, Alloy and Grafana config for the `observability` compose profile |
 
 Service setup, endpoints, env vars, key rotation and troubleshooting live in
 [apps/be-identity-service/README.md](apps/be-identity-service/README.md) — read it before changing that app;
@@ -77,6 +78,11 @@ reviewing one; the rules below are the summary.
   failures — `AllExceptionsFilter` logs every 4xx as `warn` and every 5xx as `error` and owns the error response shape.
   Global filters are matched in reverse registration order, so `AllExceptionsFilter` must stay listed before
   `DomainValidationFilter`.
+- Logs are collected outside the process: Alloy → Loki → Grafana, started with
+  `docker compose --profile observability up -d` and configured under [observability/](observability).
+  Never add a pino network transport. Only `service`, `env` and `level` are Loki labels; `req.id`,
+  `userId` and `statusCode` are structured metadata, so adding a high-cardinality field to
+  `observability/alloy/config.alloy`'s `stage.labels` is a bug.
 - Prisma types and the client come from `../generated/prisma/client`; `PrismaService` is provided by a `@Global()` module.
 - Throw NestJS HTTP exceptions (`ConflictException`, `UnauthorizedException`, …) rather than raw `Error`; map known
   Prisma error codes (e.g. `P2002`) explicitly.

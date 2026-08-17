@@ -6,6 +6,7 @@
   "scripts": {
     "build": "nest build",
     "dev": "nest start --watch",
+    "dev:logs": "mkdir -p ../../logs && LOG_PRETTY=false nest start --watch | tee -a ../../logs/be-identity-service.ndjson | pino-pretty --messageKey message --singleLine --translateTime SYS:standard --ignore pid,hostname,service,env",
     "start": "node dist/main.js",
     "lint": "eslint \"{src,test,scripts,prisma}/**/*.ts\"",
     "typecheck": "tsc --noEmit -p tsconfig.json",

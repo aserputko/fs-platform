@@ -18,6 +18,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
 
   be-identity-service:
     build:
@@ -39,6 +44,72 @@ services:
       JWT_PUBLIC_KEY_B64: ${JWT_PUBLIC_KEY_B64:-}
     ports:
       - '3001:3001'
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+
+  # Observability stack. Opt in with `docker compose --profile observability up -d`.
+  loki:
+    image: grafana/loki:3.7.6
+    container_name: fs-loki
+    restart: unless-stopped
+    profiles: ['observability']
+    command: ['-config.file=/etc/loki/loki-config.yaml']
+    ports:
+      - '3100:3100'
+    volumes:
+      - ./observability/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
+      - loki-data:/loki
+
+  alloy:
+    image: grafana/alloy:v1.18.1
+    container_name: fs-alloy
+    restart: unless-stopped
+    profiles: ['observability']
+    # Reading the Docker socket needs root; this container is local-only.
+    user: root
+    depends_on:
+      - loki
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - --disable-reporting
+      - /etc/alloy/config.alloy
+    ports:
+      - '12345:12345'
+    volumes:
+      - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./logs:/var/log/fs-platform:ro
+      - alloy-data:/var/lib/alloy/data
+
+  grafana:
+    image: grafana/grafana:13.0.6
+    container_name: fs-grafana
+    restart: unless-stopped
+    profiles: ['observability']
+    depends_on:
+      - loki
+    environment:
+      # Local-only convenience: no login prompt in front of the dashboards.
+      GF_AUTH_ANONYMOUS_ENABLED: 'true'
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_BASIC_ENABLED: 'false'
+      GF_USERS_DEFAULT_THEME: dark
+      GF_ANALYTICS_REPORTING_ENABLED: 'false'
+      GF_ANALYTICS_CHECK_FOR_UPDATES: 'false'
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
 
 volumes:
   identity-db-data:
+  loki-data:
+  alloy-data:
+  grafana-data:
