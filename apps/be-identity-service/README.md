@@ -182,6 +182,53 @@ migrations from a separate job or init container with `db:migrate:deploy`.
 
 ---
 
+## Logging
+
+Logs are structured JSON on stdout (pino), one object per line, ready to ship to any log backend.
+Set `LOG_PRETTY=true` locally for a readable rendering; never enable it in a deployed environment.
+
+Every request produces an access log line whose level follows the outcome — `info` for 2xx/3xx,
+`warn` for 4xx, `error` for 5xx. Failures additionally produce a line from the global exception
+filter carrying the reason (4xx, `warn`) or the full stack (5xx, `error`). Health, JWKS and Swagger
+routes are excluded from the access log so probes do not drown out real traffic.
+
+```json
+{
+  "level": "warn",
+  "time": "2026-08-17T20:54:38.244Z",
+  "service": "be-identity-service",
+  "env": "production",
+  "req": { "id": "8e520b02-…", "method": "POST", "url": "/auth/login", "ip": "10.0.0.7" },
+  "userId": "…",
+  "statusCode": 401,
+  "reason": "Invalid credentials",
+  "message": "POST /auth/login rejected"
+}
+```
+
+Every line carries `req.id`, taken from the caller's `x-request-id` header when it is a short opaque
+token and generated otherwise. The id is echoed back in the `x-request-id` response header and in
+the `requestId` field of every error body, so a client report can be traced to its log lines.
+
+Request and response bodies are never logged, and credential-shaped fields (`password`,
+`passwordHash`, `accessToken`, `refreshToken`, `token`, `authorization`, `cookie`) are redacted as a
+second line of defence. Failed logins are logged without revealing whether the account exists.
+
+Errors are returned in one shape, with internal failures reduced to a generic message:
+
+```json
+{
+  "statusCode": 401,
+  "error": "Unauthorized",
+  "message": "Invalid credentials",
+  "requestId": "8e520b02-…",
+  "path": "/auth/login",
+  "timestamp": "2026-08-17T20:54:38.244Z"
+}
+```
+
+---
+
 ## Configuration
 
 | Variable                      | Required | Default             | Description                                          |
@@ -194,6 +241,8 @@ migrations from a separate job or init container with `db:migrate:deploy`.
 | `PORT`                        | no       | `3001`              | HTTP port                                            |
 | `NODE_ENV`                    | no       | `development`       | `development` \| `test` \| `production`              |
 | `SWAGGER_ENABLED`             | no       | `true`              | Set `false` to disable `/docs`                       |
+| `LOG_LEVEL`                   | no       | `info`              | `fatal` … `trace`, or `silent`                       |
+| `LOG_PRETTY`                  | no       | `false`             | Set `true` for human-readable local output           |
 | `JWT_ACCESS_TTL`              | no       | `15m`               | Access token lifetime                                |
 | `JWT_REFRESH_TTL_DAYS`        | no       | `30`                | Refresh token lifetime in days                       |
 | `JWT_PREVIOUS_PUBLIC_KEY_B64` | no       | –                   | Retired public key, kept published during a rotation |

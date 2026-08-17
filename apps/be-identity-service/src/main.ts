@@ -1,18 +1,21 @@
 import 'reflect-metadata';
 
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
+import { Logger } from 'nestjs-pino';
 
 import { AppModule } from './app.module';
 import type { Env } from './config/env';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
   const config = app.get(ConfigService<Env, true>);
+  const logger = app.get(Logger);
 
+  app.useLogger(logger);
   app.use(helmet());
   app.enableShutdownHooks();
   app.useGlobalPipes(
@@ -35,7 +38,7 @@ async function bootstrap(): Promise<void> {
   const port = config.get('PORT', { infer: true });
   await app.listen(port);
 
-  Logger.log(`Identity service listening on http://localhost:${port}`, 'Bootstrap');
+  logger.log({ port }, `Identity service listening on http://localhost:${port}`, 'Bootstrap');
 }
 
 void bootstrap();

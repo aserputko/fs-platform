@@ -5,10 +5,18 @@ const booleanish = z
   .optional()
   .transform((value) => value !== 'false' && value !== '0');
 
+const optIn = z
+  .string()
+  .optional()
+  .transform((value) => value === 'true' || value === '1');
+
 export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3001),
   SWAGGER_ENABLED: booleanish,
+
+  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
+  LOG_PRETTY: optIn,
 
   DATABASE_URL: z.string().min(1),
 

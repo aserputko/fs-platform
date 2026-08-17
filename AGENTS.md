@@ -70,6 +70,13 @@ reviewing one; the rules below are the summary.
   (`whitelist`, `forbidNonWhitelisted`, `transform`) means undecorated fields are rejected.
 - Every route is guarded by the global `JwtAuthGuard` registered as `APP_GUARD` in
   [src/app.module.ts](apps/be-identity-service/src/app.module.ts). Opt out with `@Public()`; read the caller with `@CurrentUser()`.
+- Logging is structured JSON via `nestjs-pino`, configured once in
+  [src/logging/logging.module.ts](apps/be-identity-service/src/logging/logging.module.ts). Never log request bodies or
+  credentials, and never `console.log`; use `new Logger(X.name)` from `@nestjs/common` with an object first argument
+  (`logger.warn({ familyId }, 'Refresh token reuse detected')`) so fields stay queryable. Handlers do not log their own
+  failures — `AllExceptionsFilter` logs every 4xx as `warn` and every 5xx as `error` and owns the error response shape.
+  Global filters are matched in reverse registration order, so `AllExceptionsFilter` must stay listed before
+  `DomainValidationFilter`.
 - Prisma types and the client come from `../generated/prisma/client`; `PrismaService` is provided by a `@Global()` module.
 - Throw NestJS HTTP exceptions (`ConflictException`, `UnauthorizedException`, …) rather than raw `Error`; map known
   Prisma error codes (e.g. `P2002`) explicitly.

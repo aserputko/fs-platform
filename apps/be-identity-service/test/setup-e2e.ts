@@ -2,6 +2,10 @@ import 'dotenv/config';
 
 import { generateKeyPairSync } from 'node:crypto';
 
+// Silence request logs by default; set E2E_LOG_LEVEL=debug to inspect a failing run.
+process.env.LOG_LEVEL = process.env.E2E_LOG_LEVEL ?? 'silent';
+process.env.LOG_PRETTY = 'false';
+
 // Keep e2e runs self-contained: mint a throwaway key pair when none is configured.
 if (!process.env.JWT_PRIVATE_KEY_B64 || !process.env.JWT_PUBLIC_KEY_B64) {
   const { privateKey, publicKey } = generateKeyPairSync('rsa', {

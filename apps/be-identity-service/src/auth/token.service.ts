@@ -61,7 +61,7 @@ export class TokenService {
 
     if (record.revokedAt) {
       // The token was already rotated, so this is a replay: burn the whole chain.
-      this.logger.warn(`Refresh token reuse detected for family ${record.familyId}`);
+      this.logger.warn({ familyId: record.familyId }, 'Refresh token reuse detected');
       await this.revokeFamily(record.familyId);
       throw new UnauthorizedException('Refresh token reuse detected');
     }

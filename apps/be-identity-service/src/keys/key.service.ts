@@ -111,7 +111,7 @@ export class KeyService {
     }
 
     this.jwks = { keys };
-    this.logger.log(`Loaded ${keys.length} RS256 key(s); signing kid=${this.signingKid}`);
+    this.logger.log({ keyCount: keys.length, signingKid: this.signingKid }, 'Loaded RS256 key(s)');
   }
 
   getJwks(): JwkSet {
