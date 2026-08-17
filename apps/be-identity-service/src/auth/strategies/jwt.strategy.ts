@@ -1,11 +1,13 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { QueryBus } from '@nestjs/cqrs';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
 import type { Env } from '../../config/env';
 import { KeyService } from '../../keys/key.service';
-import { UsersService } from '../../users/users.service';
+import type { User } from '../../users/domain/user.model';
+import { FindUserByIdQuery } from '../../users/queries/find-user-by-id.query';
 import type { AccessTokenPayload, AuthenticatedUser } from '../authenticated-user';
 
 /** Reads the unverified header purely to select a key; the signature is still checked afterwards. */
@@ -33,7 +35,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     config: ConfigService<Env, true>,
     keyService: KeyService,
-    private readonly usersService: UsersService,
+    private readonly queryBus: QueryBus,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -59,9 +61,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: AccessTokenPayload): Promise<AuthenticatedUser> {
-    const user = await this.usersService.findById(payload.sub);
+    const user: User | null = await this.queryBus.execute(new FindUserByIdQuery(payload.sub));
 
-    if (!user || !user.isActive) {
+    if (!user?.canAuthenticate()) {
       throw new UnauthorizedException();
     }
 

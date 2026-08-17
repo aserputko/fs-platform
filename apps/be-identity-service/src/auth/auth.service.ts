@@ -1,8 +1,11 @@
 import { ConflictException, Injectable, type OnModuleInit } from '@nestjs/common';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import * as argon2 from 'argon2';
 import { randomBytes } from 'node:crypto';
 
-import { UsersService } from '../users/users.service';
+import { CreateUserCommand } from '../users/commands/create-user.command';
+import type { User } from '../users/domain/user.model';
+import { FindUserByEmailQuery } from '../users/queries/find-user-by-email.query';
 import type { AuthenticatedUser } from './authenticated-user';
 import type { RegisterDto } from './dto/register.dto';
 import type { TokensDto } from './dto/tokens.dto';
@@ -30,7 +33,8 @@ export class AuthService implements OnModuleInit {
   private decoyHash!: string;
 
   constructor(
-    private readonly usersService: UsersService,
+    private readonly commandBus: CommandBus,
+    private readonly queryBus: QueryBus,
     private readonly tokenService: TokenService,
   ) {}
 
@@ -42,11 +46,9 @@ export class AuthService implements OnModuleInit {
     const passwordHash = await argon2.hash(dto.password, ARGON2_OPTIONS);
 
     try {
-      const user = await this.usersService.create({
-        email: dto.email,
-        passwordHash,
-        displayName: dto.displayName,
-      });
+      const user = await this.commandBus.execute(
+        new CreateUserCommand(dto.email, passwordHash, dto.displayName),
+      );
 
       return this.tokenService.issueTokens({ id: user.id, email: user.email, role: user.role });
     } catch (error) {
@@ -58,7 +60,7 @@ export class AuthService implements OnModuleInit {
   }
 
   async validateUser(email: string, password: string): Promise<AuthenticatedUser | null> {
-    const user = await this.usersService.findByEmail(email);
+    const user: User | null = await this.queryBus.execute(new FindUserByEmailQuery(email));
 
     if (!user) {
       // Verify against a decoy so response time does not reveal whether the account exists.
@@ -67,7 +69,7 @@ export class AuthService implements OnModuleInit {
     }
 
     const passwordMatches = await argon2.verify(user.passwordHash, password).catch(() => false);
-    if (!passwordMatches || !user.isActive) {
+    if (!passwordMatches || !user.canAuthenticate()) {
       return null;
     }
 

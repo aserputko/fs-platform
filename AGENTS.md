@@ -45,6 +45,10 @@ Match that order locally before declaring work done.
 
 - Folder per feature (`auth/`, `users/`, `keys/`, `health/`, `prisma/`, `common/`). No barrel `index.ts` files —
   import concrete paths.
+- `users/` follows CQRS: `commands/` and `queries/` hold `@nestjs/cqrs` handlers, `users.repository.ts` is the only
+  place that touches Prisma, and `domain/user.model.ts` owns the entity plus its validation rules. Callers dispatch
+  through `CommandBus`/`QueryBus` — there is no `UsersService`. `CqrsModule.forRoot()` is registered once (globally) in
+  [src/app.module.ts](apps/be-identity-service/src/app.module.ts); do not import `CqrsModule` per feature module.
 - Env is validated with **zod** in [src/config/env.ts](apps/be-identity-service/src/config/env.ts); add new variables to that
   schema, to `.env.example`, and to the README's configuration table. Read them via `ConfigService<Env, true>` with
   `{ infer: true }`, not `process.env`.

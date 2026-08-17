@@ -1,4 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
+import { QueryBus } from '@nestjs/cqrs';
 import {
   ApiBearerAuth,
   ApiNotFoundResponse,
@@ -11,12 +12,12 @@ import {
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { UserDto } from './dto/user.dto';
-import { UsersService } from './users.service';
+import { GetUserProfileQuery } from './queries/get-user-profile.query';
 
 @ApiTags('users')
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly queryBus: QueryBus) {}
 
   @Get('me')
   @ApiBearerAuth()
@@ -25,6 +26,6 @@ export class UsersController {
   @ApiUnauthorizedResponse({ description: 'Missing, invalid, or expired access token' })
   @ApiNotFoundResponse({ description: 'User not found' })
   me(@CurrentUser() user: AuthenticatedUser): Promise<UserDto> {
-    return this.usersService.getProfile(user.id);
+    return this.queryBus.execute(new GetUserProfileQuery(user.id));
   }
 }
