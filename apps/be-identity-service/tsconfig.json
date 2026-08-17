@@ -2,7 +2,8 @@
   "extends": "@fs-platform/tsconfig/nestjs.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "."
+    "rootDir": ".",
+    "types": ["node", "jest"]
   },
   "include": [
     "src/**/*.ts",

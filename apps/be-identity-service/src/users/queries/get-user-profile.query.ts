@@ -15,12 +15,12 @@ export class GetUserProfileHandler implements IQueryHandler<GetUserProfileQuery,
   constructor(private readonly users: UsersRepository) {}
 
   async execute({ userId }: GetUserProfileQuery): Promise<UserDto> {
-    const user = await this.users.findById(userId);
+    const profile = await this.users.findProfile(userId);
 
-    if (!user) {
+    if (!profile) {
       throw new NotFoundException('User not found');
     }
 
-    return user.toDto();
+    return profile;
   }
 }

@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { CqrsModule } from '@nestjs/cqrs';
 
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { DomainValidationFilter } from './common/filters/domain-validation.filter';
 import { validateEnv } from './config/env';
 import { HealthModule } from './health/health.module';
 import { KeysModule } from './keys/keys.module';
@@ -21,6 +22,9 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     HealthModule,
   ],
-  providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],
+  providers: [
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_FILTER, useClass: DomainValidationFilter },
+  ],
 })
 export class AppModule {}

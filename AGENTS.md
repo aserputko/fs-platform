@@ -41,14 +41,28 @@ Match that order locally before declaring work done.
 - Commits are validated by commitlint (conventional commits) and `lint-staged` via husky. Don't bypass with `--no-verify`.
 - Formatting is Prettier's job — don't hand-align code or add style-only edits.
 
-## Service conventions (`apps/be-identity-service/src`)
+## Service conventions (any NestJS app under `apps/`)
+
+**[apps/be-identity-service/src/users](apps/be-identity-service/src/users) is the canonical blueprint.** Every new
+feature module — and every new NestJS app added under `apps/` — copies its folder structure and layering. Follow
+[.github/skills/nestjs-feature-module/SKILL.md](.github/skills/nestjs-feature-module/SKILL.md) when scaffolding or
+reviewing one; the rules below are the summary.
 
 - Folder per feature (`auth/`, `users/`, `keys/`, `health/`, `prisma/`, `common/`). No barrel `index.ts` files —
   import concrete paths.
-- `users/` follows CQRS: `commands/` and `queries/` hold `@nestjs/cqrs` handlers, `users.repository.ts` is the only
-  place that touches Prisma, and `domain/user.model.ts` owns the entity plus its validation rules. Callers dispatch
-  through `CommandBus`/`QueryBus` — there is no `UsersService`. `CqrsModule.forRoot()` is registered once (globally) in
+- Feature layout: `<feature>.module.ts`, `<feature>.controller.ts`, `<feature>.repository.ts`, `commands/`, `queries/`,
+  `domain/`, `dto/`, with co-located `*.spec.ts`. Add a folder only when the feature needs it.
+- Features follow CQRS: `commands/` and `queries/` hold one `@nestjs/cqrs` message class plus its handler per file,
+  `<feature>.repository.ts` is the only place that touches Prisma, and `domain/<entity>.model.ts` owns the entity plus
+  its validation rules. Controllers dispatch through `CommandBus`/`QueryBus` — do not add a `<Feature>Service`.
+  `CqrsModule.forRoot()` is registered once (globally) in
   [src/app.module.ts](apps/be-identity-service/src/app.module.ts); do not import `CqrsModule` per feature module.
+- Register the controller, repository, and every handler explicitly in the feature module's `providers`.
+- Domain files import neither Prisma nor Nest: the repository maps `UserRecord` → `User.fromProps`, and domain rules
+  throw `DomainValidationError`, which `DomainValidationFilter` (an `APP_FILTER`) turns into a 400. Keep it that way.
+- Reads that need no business logic skip the domain: `findProfile` projects straight to `UserDto` with a Prisma
+  `select`, so `passwordHash` is never loaded. Keep response shapes an explicit whitelist (a `select` or a literal) —
+  never spread an entity and never rely on `@Exclude`.
 - Env is validated with **zod** in [src/config/env.ts](apps/be-identity-service/src/config/env.ts); add new variables to that
   schema, to `.env.example`, and to the README's configuration table. Read them via `ConfigService<Env, true>` with
   `{ infer: true }`, not `process.env`.
@@ -61,6 +75,9 @@ Match that order locally before declaring work done.
   Prisma error codes (e.g. `P2002`) explicitly.
 - Auth code deliberately keeps timing constant (decoy argon2 hash for unknown users) and stores refresh tokens only as
   SHA-256 hashes with replay detection. Preserve those properties when editing `auth/`.
+- A new app under `apps/` mirrors `be-identity-service`'s wiring: shared `@repo/eslint-config` / `@repo/tsconfig`,
+  zod-validated env, a `@Global()` Prisma module, and `CqrsModule.forRoot()`, `ValidationPipe`,
+  `DomainValidationFilter`, and `JwtAuthGuard` registered once in `app.module.ts`.
 
 ## Tests
 

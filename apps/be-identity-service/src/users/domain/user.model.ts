@@ -1,7 +1,6 @@
-import { BadRequestException } from '@nestjs/common';
+import { DomainValidationError } from '../../common/errors/domain-validation.error';
 
-import type { Role, User as UserRecord } from '../../generated/prisma/client';
-import type { UserDto } from '../dto/user.dto';
+export type Role = 'USER' | 'ADMIN';
 
 export const EMAIL_MAX_LENGTH = 254;
 export const DISPLAY_NAME_MAX_LENGTH = 120;
@@ -17,11 +16,11 @@ export function assertValidEmail(email: string): string {
   const normalized = normalizeEmail(email);
 
   if (normalized.length === 0 || normalized.length > EMAIL_MAX_LENGTH) {
-    throw new BadRequestException('Email must be between 1 and 254 characters');
+    throw new DomainValidationError('Email must be between 1 and 254 characters');
   }
 
   if (!EMAIL_PATTERN.test(normalized)) {
-    throw new BadRequestException('Email is not a valid address');
+    throw new DomainValidationError('Email is not a valid address');
   }
 
   return normalized;
@@ -39,7 +38,7 @@ export function assertValidDisplayName(displayName: string | undefined): string 
   }
 
   if (trimmed.length > DISPLAY_NAME_MAX_LENGTH) {
-    throw new BadRequestException('Display name must be at most 120 characters');
+    throw new DomainValidationError('Display name must be at most 120 characters');
   }
 
   return trimmed;
@@ -48,7 +47,7 @@ export function assertValidDisplayName(displayName: string | undefined): string 
 export function assertValidPasswordHash(passwordHash: string): string {
   // Guards against a plaintext password reaching persistence if hashing is ever skipped.
   if (!passwordHash.startsWith('$argon2')) {
-    throw new BadRequestException('Password must be hashed before persistence');
+    throw new DomainValidationError('Password must be hashed before persistence');
   }
 
   return passwordHash;
@@ -77,6 +76,17 @@ export class NewUser {
   }
 }
 
+export interface UserProps {
+  id: string;
+  email: string;
+  passwordHash: string;
+  displayName: string | null;
+  role: Role;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export class User {
   private constructor(
     readonly id: string,
@@ -89,16 +99,16 @@ export class User {
     readonly updatedAt: Date,
   ) {}
 
-  static fromPersistence(record: UserRecord): User {
+  static fromProps(props: UserProps): User {
     return new User(
-      record.id,
-      record.email,
-      record.passwordHash,
-      record.displayName,
-      record.role,
-      record.isActive,
-      record.createdAt,
-      record.updatedAt,
+      props.id,
+      props.email,
+      props.passwordHash,
+      props.displayName,
+      props.role,
+      props.isActive,
+      props.createdAt,
+      props.updatedAt,
     );
   }
 
@@ -108,15 +118,5 @@ export class User {
 
   canAuthenticate(): boolean {
     return this.isActive;
-  }
-
-  toDto(): UserDto {
-    return {
-      id: this.id,
-      email: this.email,
-      displayName: this.displayName,
-      role: this.role,
-      createdAt: this.createdAt,
-    };
   }
 }

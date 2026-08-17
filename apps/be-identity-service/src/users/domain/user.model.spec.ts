@@ -1,9 +1,7 @@
-import { BadRequestException } from '@nestjs/common';
+import { DomainValidationError } from '../../common/errors/domain-validation.error';
+import { NewUser, User, type UserProps, normalizeEmail } from './user.model';
 
-import type { User as UserRecord } from '../../generated/prisma/client';
-import { NewUser, User, normalizeEmail } from './user.model';
-
-const record: UserRecord = {
+const props: UserProps = {
   id: 'user-1',
   email: 'ada@example.com',
   passwordHash: '$argon2id$v=19$m=19456,t=2,p=1$salt$hash',
@@ -21,7 +19,7 @@ describe('normalizeEmail', () => {
 });
 
 describe('NewUser.create', () => {
-  const validProps = { email: 'Ada@Example.com', passwordHash: record.passwordHash };
+  const validProps = { email: 'Ada@Example.com', passwordHash: props.passwordHash };
 
   it('normalizes the email', () => {
     expect(NewUser.create(validProps).email).toBe('ada@example.com');
@@ -35,49 +33,38 @@ describe('NewUser.create', () => {
   it.each(['not-an-email', '', 'a@b', `${'a'.repeat(250)}@example.com`])(
     'rejects the invalid email %p',
     (email) => {
-      expect(() => NewUser.create({ ...validProps, email })).toThrow(BadRequestException);
+      expect(() => NewUser.create({ ...validProps, email })).toThrow(DomainValidationError);
     },
   );
 
   it('rejects a display name over 120 characters', () => {
     expect(() => NewUser.create({ ...validProps, displayName: 'x'.repeat(121) })).toThrow(
-      BadRequestException,
+      DomainValidationError,
     );
   });
 
   it('rejects a password that was not hashed', () => {
     expect(() => NewUser.create({ ...validProps, passwordHash: 'plaintext' })).toThrow(
-      BadRequestException,
+      DomainValidationError,
     );
   });
 });
 
 describe('User', () => {
-  it('maps a persisted record onto the entity', () => {
-    const user = User.fromPersistence(record);
+  it('builds an entity from persisted props', () => {
+    const user = User.fromProps(props);
 
     expect(user.id).toBe('user-1');
-    expect(user.passwordHash).toBe(record.passwordHash);
+    expect(user.passwordHash).toBe(props.passwordHash);
     expect(user.isAdmin).toBe(false);
     expect(user.canAuthenticate()).toBe(true);
   });
 
-  it('cannot authenticate when deactivated', () => {
-    expect(User.fromPersistence({ ...record, isActive: false }).canAuthenticate()).toBe(false);
+  it('recognises admins', () => {
+    expect(User.fromProps({ ...props, role: 'ADMIN' }).isAdmin).toBe(true);
   });
 
-  it('exposes only public fields through toDto', () => {
-    const dto = User.fromPersistence(record).toDto();
-
-    expect(dto).toEqual({
-      id: 'user-1',
-      email: 'ada@example.com',
-      displayName: 'Ada Lovelace',
-      role: 'USER',
-      createdAt: record.createdAt,
-    });
-    expect(dto).not.toHaveProperty('passwordHash');
-    expect(dto).not.toHaveProperty('isActive');
-    expect(dto).not.toHaveProperty('updatedAt');
+  it('cannot authenticate when deactivated', () => {
+    expect(User.fromProps({ ...props, isActive: false }).canAuthenticate()).toBe(false);
   });
 });
