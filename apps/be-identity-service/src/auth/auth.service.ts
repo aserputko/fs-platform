@@ -1,18 +1,11 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-  type OnModuleInit,
-} from '@nestjs/common';
+import { ConflictException, Injectable, type OnModuleInit } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { randomBytes } from 'node:crypto';
 
-import type { User } from '../generated/prisma/client';
 import { UsersService } from '../users/users.service';
 import type { AuthenticatedUser } from './authenticated-user';
 import type { RegisterDto } from './dto/register.dto';
 import type { TokensDto } from './dto/tokens.dto';
-import type { UserDto } from './dto/user.dto';
 import { TokenService } from './token.service';
 
 // OWASP Password Storage Cheat Sheet baseline for argon2id.
@@ -30,16 +23,6 @@ function isUniqueViolation(error: unknown): boolean {
     'code' in error &&
     (error as { code?: string }).code === 'P2002'
   );
-}
-
-function toUserDto(user: User): UserDto {
-  return {
-    id: user.id,
-    email: user.email,
-    displayName: user.displayName,
-    role: user.role,
-    createdAt: user.createdAt,
-  };
 }
 
 @Injectable()
@@ -101,15 +84,5 @@ export class AuthService implements OnModuleInit {
 
   logout(refreshToken: string): Promise<void> {
     return this.tokenService.revokeByToken(refreshToken);
-  }
-
-  async me(userId: string): Promise<UserDto> {
-    const user = await this.usersService.findById(userId);
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    return toUserDto(user);
   }
 }

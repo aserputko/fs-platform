@@ -8,6 +8,7 @@ import { validateEnv } from './config/env';
 import { HealthModule } from './health/health.module';
 import { KeysModule } from './keys/keys.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { PrismaModule } from './prisma/prisma.module';
     PrismaModule,
     KeysModule,
     AuthModule,
+    UsersModule,
     HealthModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],

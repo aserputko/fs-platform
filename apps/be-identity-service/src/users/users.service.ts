@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 
 import type { User } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import type { UserDto } from './dto/user.dto';
 
 @Injectable()
 export class UsersService {
@@ -20,9 +21,29 @@ export class UsersService {
       data: { ...input, email: normalizeEmail(input.email) },
     });
   }
+
+  async getProfile(id: string): Promise<UserDto> {
+    const user = await this.findById(id);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return toUserDto(user);
+  }
 }
 
 /** Case-insensitive matching prevents two accounts differing only by capitalisation. */
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
+}
+
+function toUserDto(user: User): UserDto {
+  return {
+    id: user.id,
+    email: user.email,
+    displayName: user.displayName,
+    role: user.role,
+    createdAt: user.createdAt,
+  };
 }

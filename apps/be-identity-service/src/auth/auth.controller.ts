@@ -1,6 +1,5 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
 import {
-  ApiBearerAuth,
   ApiBody,
   ApiConflictResponse,
   ApiCreatedResponse,
@@ -18,7 +17,6 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
 import { TokensDto } from './dto/tokens.dto';
-import { UserDto } from './dto/user.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 
 @ApiTags('auth')
@@ -63,13 +61,5 @@ export class AuthController {
   @ApiOperation({ summary: 'Revoke the refresh token chain' })
   logout(@Body() dto: RefreshDto): Promise<void> {
     return this.authService.logout(dto.refreshToken);
-  }
-
-  @Get('me')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Return the authenticated user' })
-  @ApiOkResponse({ type: UserDto })
-  me(@CurrentUser() user: AuthenticatedUser): Promise<UserDto> {
-    return this.authService.me(user.id);
   }
 }

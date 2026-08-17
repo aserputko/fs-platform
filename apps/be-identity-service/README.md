@@ -114,7 +114,7 @@ curl http://localhost:3001/.well-known/jwks.json
 | `POST` | `/auth/login`            | –      | Exchange credentials for a token pair           |
 | `POST` | `/auth/refresh`          | –      | Rotate a refresh token                          |
 | `POST` | `/auth/logout`           | –      | Revoke the refresh token chain                  |
-| `GET`  | `/auth/me`               | Bearer | Current user profile                            |
+| `GET`  | `/users/me`              | Bearer | Current user profile                            |
 | `GET`  | `/.well-known/jwks.json` | –      | Public keys for verifying access tokens         |
 | `GET`  | `/health`                | –      | Liveness probe                                  |
 | `GET`  | `/health/ready`          | –      | Readiness probe, checks the database connection |

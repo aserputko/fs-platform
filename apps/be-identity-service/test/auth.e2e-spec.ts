@@ -79,20 +79,6 @@ describe('Auth (e2e)', () => {
     expect(body.keys[0]).not.toHaveProperty('d');
   });
 
-  it('refuses /auth/me without a bearer token', async () => {
-    await request(http).get('/auth/me').expect(401);
-  });
-
-  it('returns the profile for a valid bearer token', async () => {
-    const { body } = await request(http)
-      .get('/auth/me')
-      .set('Authorization', `Bearer ${accessToken}`)
-      .expect(200);
-
-    expect(body).toMatchObject({ email, displayName: 'E2E User', role: 'USER' });
-    expect(body).not.toHaveProperty('passwordHash');
-  });
-
   it('logs in with the registered credentials', async () => {
     const { body } = await request(http).post('/auth/login').send({ email, password }).expect(200);
 
