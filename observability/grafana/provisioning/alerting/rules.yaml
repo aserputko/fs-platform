@@ -90,3 +90,50 @@ groups:
                     type: gt
                     params:
                       - 0
+
+  - orgId: 1
+    name: project-service
+    folder: fs-platform
+    interval: 1m
+    rules:
+      - uid: fs-project-error-rate
+        title: Project service error rate
+        condition: threshold
+        for: 5m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: warning
+        annotations:
+          summary: be-project-service logged more than 5 errors in the last 5 minutes.
+          runbook_url: http://localhost:3000/d/fs-project-logs
+        data:
+          - refId: query
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: loki
+            model:
+              refId: query
+              datasource:
+                type: loki
+                uid: loki
+              queryType: instant
+              expr: sum(count_over_time({service="be-project-service", level="error"}[5m]))
+          - refId: threshold
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              refId: threshold
+              type: threshold
+              expression: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 5

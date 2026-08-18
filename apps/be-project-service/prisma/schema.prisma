@@ -1,0 +1,24 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// `userId` is the `sub` claim of a be-identity-service access token. It is deliberately not a
+/// foreign key: users live in another service's database.
+model Project {
+  id          String    @id @default(uuid(7))
+  userId      String
+  title       String    @db.VarChar(256)
+  description String?   @db.VarChar(1024)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  @@index([userId, deletedAt])
+  @@map("projects")
+}

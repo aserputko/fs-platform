@@ -2,16 +2,18 @@
 
 Turborepo + npm workspaces monorepo. Node >= 22.12 (`.nvmrc` pins 24, `.npmrc` sets `engine-strict=true`).
 
-| Path                       | What it is                                                             |
-| -------------------------- | ---------------------------------------------------------------------- |
-| `apps/be-identity-service` | NestJS 11 auth service (Prisma 7, PostgreSQL 18, RS256 JWT + JWKS)     |
-| `packages/eslint-config`   | Shared flat ESLint configs (`base.js`, `nest.js`)                      |
-| `packages/tsconfig`        | Shared TS configs (`base.json`, `nestjs.json`)                         |
-| `observability/`           | Loki, Alloy and Grafana config for the `observability` compose profile |
+| Path                       | What it is                                                                    |
+| -------------------------- | ----------------------------------------------------------------------------- |
+| `apps/be-identity-service` | NestJS 11 auth service (Prisma 7, PostgreSQL 18, RS256 JWT + JWKS)            |
+| `apps/be-project-service`  | NestJS 11 project CRUD service (Prisma 7, PostgreSQL 18, verifies RS256 JWTs) |
+| `packages/eslint-config`   | Shared flat ESLint configs (`base.js`, `nest.js`)                             |
+| `packages/tsconfig`        | Shared TS configs (`base.json`, `nestjs.json`)                                |
+| `observability/`           | Loki, Alloy and Grafana config for the `observability` compose profile        |
 
 Service setup, endpoints, env vars, key rotation and troubleshooting live in
-[apps/be-identity-service/README.md](apps/be-identity-service/README.md) — read it before changing that app;
-update it when behaviour, scripts, or configuration change.
+[apps/be-identity-service/README.md](apps/be-identity-service/README.md) and
+[apps/be-project-service/README.md](apps/be-project-service/README.md) — read the relevant one before
+changing that app; update it when behaviour, scripts, or configuration change.
 
 ## Build and test
 
@@ -25,7 +27,8 @@ npm run test:e2e        # needs a running, migrated database
 
 Prisma commands run from `apps/be-identity-service` (the Prisma CLI is installed there, not at the root):
 `npm run db:generate`, `npm run db:migrate`, `npm run db:seed`, `npm run keys:generate`.
-Exception: `npm run db:migrate` also works from the root (it delegates via `--workspace`).
+`apps/be-project-service` has the same commands minus `db:seed` and `keys:generate`.
+Exception: `npm run db:migrate` also works from the root (Turbo fans it out to every service).
 
 CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs, in order:
 `format:check` → `lint` → `typecheck` → `build` → `test` → `db:migrate:deploy` → `test:e2e`.

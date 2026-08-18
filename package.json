@@ -19,7 +19,7 @@
     "test": "turbo run test",
     "test:e2e": "turbo run test:e2e",
     "db:generate": "turbo run db:generate",
-    "db:migrate": "npm run db:migrate --workspace @fs-platform/be-identity-service",
+    "db:migrate": "turbo run db:migrate",
     "format": "prettier --write \"**/*.{ts,js,mjs,json,md,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{ts,js,mjs,json,md,yml,yaml}\"",
     "prepare": "husky || exit 0"

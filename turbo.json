@@ -7,6 +7,10 @@
       "inputs": ["prisma/schema.prisma", "prisma.config.ts"],
       "outputs": ["src/generated/prisma/**"]
     },
+    "db:migrate": {
+      "cache": false,
+      "interactive": true
+    },
     "build": {
       "dependsOn": ["^build", "db:generate"],
       "outputs": ["dist/**"]

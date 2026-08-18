@@ -1,0 +1,65 @@
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { PassportStrategy } from '@nestjs/passport';
+import { ExtractJwt, Strategy } from 'passport-jwt';
+
+import type { Env } from '../../config/env';
+import { KeyService } from '../../keys/key.service';
+import type { AccessTokenPayload, AuthenticatedUser } from '../authenticated-user';
+
+/** Reads the unverified header purely to select a key; the signature is still checked afterwards. */
+function readKid(rawJwt: string): string | undefined {
+  const encodedHeader = rawJwt.split('.')[0];
+  if (!encodedHeader) {
+    return undefined;
+  }
+
+  try {
+    const header: unknown = JSON.parse(Buffer.from(encodedHeader, 'base64url').toString('utf8'));
+    if (typeof header === 'object' && header !== null && 'kid' in header) {
+      const { kid } = header as { kid?: unknown };
+      return typeof kid === 'string' ? kid : undefined;
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
+}
+
+@Injectable()
+export class JwtStrategy extends PassportStrategy(Strategy) {
+  constructor(config: ConfigService<Env, true>, keyService: KeyService) {
+    super({
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ignoreExpiration: false,
+      algorithms: ['RS256'],
+      issuer: config.get('JWT_ISSUER', { infer: true }),
+      audience: config.get('JWT_AUDIENCE', { infer: true }),
+      secretOrKeyProvider: (
+        _request: unknown,
+        rawJwtToken: string,
+        done: (err: Error | null, key?: string) => void,
+      ) => {
+        const pem = keyService.getVerificationKeyPem(readKid(rawJwtToken));
+
+        if (!pem) {
+          done(new UnauthorizedException('Token signed with an unknown key'));
+          return;
+        }
+
+        done(null, pem);
+      },
+    });
+  }
+
+  // There is no local user table, so a token that passes signature, issuer, audience and
+  // expiry checks is authoritative about who the caller is.
+  validate(payload: AccessTokenPayload): AuthenticatedUser {
+    if (!payload.sub) {
+      throw new UnauthorizedException('Token is missing a subject claim');
+    }
+
+    return { id: payload.sub, email: payload.email, role: payload.role };
+  }
+}

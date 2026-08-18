@@ -11,14 +11,17 @@ concurrency:
 
 env:
   # prisma.config.ts resolves DATABASE_URL eagerly, so even `prisma generate` needs it set.
+  # Each service owns a database; the root turbo tasks only need *a* valid URL.
   DATABASE_URL: postgresql://identity:identity@localhost:5432/identity_db?schema=public
+  IDENTITY_DATABASE_URL: postgresql://identity:identity@localhost:5432/identity_db?schema=public
+  PROJECT_DATABASE_URL: postgresql://project:project@localhost:5433/project_db?schema=public
 
 jobs:
   verify:
     runs-on: ubuntu-latest
 
     services:
-      postgres:
+      identity-postgres:
         image: postgres:18-alpine
         env:
           POSTGRES_USER: identity
@@ -28,6 +31,20 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd "pg_isready -U identity -d identity_db"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      project-postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: project
+          POSTGRES_PASSWORD: project
+          POSTGRES_DB: project_db
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U project -d project_db"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -48,14 +65,32 @@ jobs:
       - run: npm run build
       - run: npm test
 
-      - name: Apply migrations
+      - name: Apply identity migrations
         run: npm run db:migrate:deploy --workspace @fs-platform/be-identity-service
+        env:
+          DATABASE_URL: ${{ env.IDENTITY_DATABASE_URL }}
 
-      # The e2e setup mints a throwaway RS256 key pair, so no signing secrets are needed here.
-      - run: npm run test:e2e
+      - name: Apply project migrations
+        run: npm run db:migrate:deploy --workspace @fs-platform/be-project-service
+        env:
+          DATABASE_URL: ${{ env.PROJECT_DATABASE_URL }}
+
+      # The e2e setups mint throwaway RS256 key pairs, so no signing secrets are needed here.
+      - name: Identity e2e
+        run: npm run test:e2e --workspace @fs-platform/be-identity-service
+        env:
+          DATABASE_URL: ${{ env.IDENTITY_DATABASE_URL }}
+
+      - name: Project e2e
+        run: npm run test:e2e --workspace @fs-platform/be-project-service
+        env:
+          DATABASE_URL: ${{ env.PROJECT_DATABASE_URL }}
 
   docker:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [be-identity-service, be-project-service]
     steps:
       - uses: actions/checkout@v4
 
@@ -64,7 +99,7 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          file: apps/be-identity-service/Dockerfile
+          file: apps/${{ matrix.service }}/Dockerfile
           push: false
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
