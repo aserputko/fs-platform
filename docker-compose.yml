@@ -24,31 +24,31 @@ services:
         max-size: '10m'
         max-file: '3'
 
-  be-identity-service:
-    build:
-      context: .
-      dockerfile: apps/be-identity-service/Dockerfile
-    container_name: fs-be-identity-service
-    restart: unless-stopped
-    profiles: ['full']
-    depends_on:
-      identity-db:
-        condition: service_healthy
-    environment:
-      NODE_ENV: production
-      PORT: 3001
-      DATABASE_URL: postgresql://identity:identity@identity-db:5432/identity_db?schema=public
-      JWT_ISSUER: http://localhost:3001
-      JWT_AUDIENCE: fs-platform
-      JWT_PRIVATE_KEY_B64: ${JWT_PRIVATE_KEY_B64:-}
-      JWT_PUBLIC_KEY_B64: ${JWT_PUBLIC_KEY_B64:-}
-    ports:
-      - '3001:3001'
-    logging:
-      driver: json-file
-      options:
-        max-size: '10m'
-        max-file: '3'
+  # be-identity-service:
+  #   build:
+  #     context: .
+  #     dockerfile: apps/be-identity-service/Dockerfile
+  #   container_name: fs-be-identity-service
+  #   restart: unless-stopped
+  #   profiles: ['full']
+  #   depends_on:
+  #     identity-db:
+  #       condition: service_healthy
+  #   environment:
+  #     NODE_ENV: production
+  #     PORT: 3001
+  #     DATABASE_URL: postgresql://identity:identity@identity-db:5432/identity_db?schema=public
+  #     JWT_ISSUER: http://localhost:3001
+  #     JWT_AUDIENCE: fs-platform
+  #     JWT_PRIVATE_KEY_B64: ${JWT_PRIVATE_KEY_B64:-}
+  #     JWT_PUBLIC_KEY_B64: ${JWT_PUBLIC_KEY_B64:-}
+  #   ports:
+  #     - '3001:3001'
+  #   logging:
+  #     driver: json-file
+  #     options:
+  #       max-size: '10m'
+  #       max-file: '3'
 
   project-db:
     image: postgres:18-alpine
@@ -75,32 +75,32 @@ services:
         max-size: '10m'
         max-file: '3'
 
-  be-project-service:
-    build:
-      context: .
-      dockerfile: apps/be-project-service/Dockerfile
-    container_name: fs-be-project-service
-    restart: unless-stopped
-    profiles: ['full']
-    depends_on:
-      project-db:
-        condition: service_healthy
-    environment:
-      NODE_ENV: production
-      PORT: 3002
-      DATABASE_URL: postgresql://project:project@project-db:5432/project_db?schema=public
-      # Must match be-identity-service: these describe the tokens this service verifies.
-      JWT_ISSUER: http://localhost:3001
-      JWT_AUDIENCE: fs-platform
-      # Verification only, so the private key is deliberately not passed here.
-      JWT_PUBLIC_KEY_B64: ${JWT_PUBLIC_KEY_B64:-}
-    ports:
-      - '3002:3002'
-    logging:
-      driver: json-file
-      options:
-        max-size: '10m'
-        max-file: '3'
+  # be-project-service:
+  #   build:
+  #     context: .
+  #     dockerfile: apps/be-project-service/Dockerfile
+  #   container_name: fs-be-project-service
+  #   restart: unless-stopped
+  #   profiles: ['full']
+  #   depends_on:
+  #     project-db:
+  #       condition: service_healthy
+  #   environment:
+  #     NODE_ENV: production
+  #     PORT: 3002
+  #     DATABASE_URL: postgresql://project:project@project-db:5432/project_db?schema=public
+  #     # Must match be-identity-service: these describe the tokens this service verifies.
+  #     JWT_ISSUER: http://localhost:3001
+  #     JWT_AUDIENCE: fs-platform
+  #     # Verification only, so the private key is deliberately not passed here.
+  #     JWT_PUBLIC_KEY_B64: ${JWT_PUBLIC_KEY_B64:-}
+  #   ports:
+  #     - '3002:3002'
+  #   logging:
+  #     driver: json-file
+  #     options:
+  #       max-size: '10m'
+  #       max-file: '3'
 
   # Observability stack. Opt in with `docker compose --profile observability up -d`.
   loki:

@@ -6,8 +6,9 @@ Turborepo + npm workspaces monorepo. Node >= 22.12 (`.nvmrc` pins 24, `.npmrc` s
 | -------------------------- | ----------------------------------------------------------------------------- |
 | `apps/be-identity-service` | NestJS 11 auth service (Prisma 7, PostgreSQL 18, RS256 JWT + JWKS)            |
 | `apps/be-project-service`  | NestJS 11 project CRUD service (Prisma 7, PostgreSQL 18, verifies RS256 JWTs) |
-| `packages/eslint-config`   | Shared flat ESLint configs (`base.js`, `nest.js`)                             |
-| `packages/tsconfig`        | Shared TS configs (`base.json`, `nestjs.json`)                                |
+| `apps/fe-project-web`      | React 19 + Vite 7 + Tailwind 3 + React Hook Form web client                   |
+| `packages/eslint-config`   | Shared flat ESLint configs (`base.js`, `nest.js`, `react.js`)                 |
+| `packages/tsconfig`        | Shared TS configs (`base.json`, `nestjs.json`, `react.json`)                  |
 | `observability/`           | Loki, Alloy and Grafana config for the `observability` compose profile        |
 
 Service setup, endpoints, env vars, key rotation and troubleshooting live in
