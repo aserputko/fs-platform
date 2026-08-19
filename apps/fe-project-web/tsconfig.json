@@ -1,4 +1,5 @@
 {
   "extends": "@fs-platform/tsconfig/react.json",
+  // tailwind.config.ts stays out: it pulls fe-ui-kit's prebuilt TS sources, which predate verbatimModuleSyntax.
   "include": ["src", "vite.config.ts"]
 }

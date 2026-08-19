@@ -1,8 +1,10 @@
+import { OnetalentUIKitProvider } from 'fe-ui-kit';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { App } from './app';
-import './index.css';
+import 'fe-ui-kit/styles.css';
+import './styles/index.scss';
 
 const rootElement = document.getElementById('root');
 
@@ -12,6 +14,8 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <App />
+    <OnetalentUIKitProvider>
+      <App />
+    </OnetalentUIKitProvider>
   </StrictMode>,
 );

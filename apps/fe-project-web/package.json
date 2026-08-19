@@ -12,6 +12,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@epam/uui": "6.1.2",
+    "@epam/uui-core": "6.1.2",
+    "fe-ui-kit": "*",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-hook-form": "^7.71.0"
@@ -19,12 +22,16 @@
   "devDependencies": {
     "@fs-platform/eslint-config": "*",
     "@fs-platform/tsconfig": "*",
+    "@tailwindcss/container-queries": "^0.1.1",
+    "@types/node": "^24.10.1",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
     "@vitejs/plugin-react": "^5.0.4",
     "autoprefixer": "^10.4.21",
     "eslint": "^9.39.1",
     "postcss": "^8.5.6",
+    "sass": "^1.94.1",
+    "tailwind-scrollbar": "^3.1.0",
     "tailwindcss": "^3.4.18",
     "typescript": "^5.9.3",
     "vite": "^7.1.12"

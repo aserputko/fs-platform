@@ -33,6 +33,20 @@
     "turbo": "^2.10.10",
     "typescript": "^5.9.3"
   },
+  "overrides": {
+    "@epam/uui": {
+      "react": "^19.2.0",
+      "react-dom": "^19.2.0"
+    },
+    "@epam/uui-core": {
+      "react": "^19.2.0",
+      "react-dom": "^19.2.0"
+    },
+    "@epam/uui-components": {
+      "react": "^19.2.0",
+      "react-dom": "^19.2.0"
+    }
+  },
   "lint-staged": {
     "*.{ts,js,mjs}": [
       "prettier --write"
