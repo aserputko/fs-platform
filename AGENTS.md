@@ -2,18 +2,20 @@
 
 Turborepo + npm workspaces monorepo. Node >= 22.12 (`.nvmrc` pins 24, `.npmrc` sets `engine-strict=true`).
 
-| Path                       | What it is                                                                    |
-| -------------------------- | ----------------------------------------------------------------------------- |
-| `apps/be-identity-service` | NestJS 11 auth service (Prisma 7, PostgreSQL 18, RS256 JWT + JWKS)            |
-| `apps/be-project-service`  | NestJS 11 project CRUD service (Prisma 7, PostgreSQL 18, verifies RS256 JWTs) |
-| `apps/fe-project-web`      | React 19 + Vite 7 + Tailwind 3 + React Hook Form web client                   |
-| `packages/eslint-config`   | Shared flat ESLint configs (`base.js`, `nest.js`, `react.js`)                 |
-| `packages/tsconfig`        | Shared TS configs (`base.json`, `nestjs.json`, `react.json`)                  |
-| `observability/`           | Loki, Alloy and Grafana config for the `observability` compose profile        |
+| Path                       | What it is                                                                        |
+| -------------------------- | --------------------------------------------------------------------------------- |
+| `apps/be-identity-service` | NestJS 11 auth service (Prisma 7, PostgreSQL 18, RS256 JWT + JWKS)                |
+| `apps/be-project-service`  | NestJS 11 project CRUD service (Prisma 7, PostgreSQL 18, verifies RS256 JWTs)     |
+| `apps/be-workflow-service` | NestJS 11 approval workflow engine (Prisma 7, PostgreSQL 18, user + service JWTs) |
+| `apps/fe-project-web`      | React 19 + Vite 7 + Tailwind 3 + React Hook Form web client                       |
+| `packages/eslint-config`   | Shared flat ESLint configs (`base.js`, `nest.js`, `react.js`)                     |
+| `packages/tsconfig`        | Shared TS configs (`base.json`, `nestjs.json`, `react.json`)                      |
+| `observability/`           | Loki, Alloy and Grafana config for the `observability` compose profile            |
 
 Service setup, endpoints, env vars, key rotation and troubleshooting live in
-[apps/be-identity-service/README.md](apps/be-identity-service/README.md) and
-[apps/be-project-service/README.md](apps/be-project-service/README.md) — read the relevant one before
+[apps/be-identity-service/README.md](apps/be-identity-service/README.md),
+[apps/be-project-service/README.md](apps/be-project-service/README.md) and
+[apps/be-workflow-service/README.md](apps/be-workflow-service/README.md) — read the relevant one before
 changing that app; update it when behaviour, scripts, or configuration change.
 
 ## Build and test
@@ -28,8 +30,13 @@ npm run test:e2e        # needs a running, migrated database
 
 Prisma commands run from `apps/be-identity-service` (the Prisma CLI is installed there, not at the root):
 `npm run db:generate`, `npm run db:migrate`, `npm run db:seed`, `npm run keys:generate`.
-`apps/be-project-service` has the same commands minus `db:seed` and `keys:generate`.
+`apps/be-project-service` has the same commands minus `db:seed` and `keys:generate`;
+`apps/be-workflow-service` has them minus `keys:generate`.
 Exception: `npm run db:migrate` also works from the root (Turbo fans it out to every service).
+
+`npm run keys:generate` takes an optional `--service` flag. It mints the **separate** RS256 pair used for
+service-to-service tokens. Never reuse the user pair for it: whoever holds identity's private key can mint a
+token for any `sub` with any role.
 
 CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs, in order:
 `format:check` → `lint` → `typecheck` → `build` → `test` → `db:migrate:deploy` → `test:e2e`.

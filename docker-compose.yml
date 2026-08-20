@@ -102,6 +102,63 @@ services:
   #       max-size: '10m'
   #       max-file: '3'
 
+  workflow-db:
+    image: postgres:18-alpine
+    container_name: fs-workflow-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: workflow
+      POSTGRES_PASSWORD: workflow
+      POSTGRES_DB: workflow_db
+      # Pinning PGDATA to a subdirectory keeps the named volume valid across image major versions.
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - '5434:5432'
+    volumes:
+      - workflow-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U workflow -d workflow_db']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+
+  # be-workflow-service:
+  #   build:
+  #     context: .
+  #     dockerfile: apps/be-workflow-service/Dockerfile
+  #   container_name: fs-be-workflow-service
+  #   restart: unless-stopped
+  #   profiles: ['full']
+  #   depends_on:
+  #     workflow-db:
+  #       condition: service_healthy
+  #   environment:
+  #     NODE_ENV: production
+  #     PORT: 3003
+  #     DATABASE_URL: postgresql://workflow:workflow@workflow-db:5432/workflow_db?schema=public
+  #     # Must match be-identity-service: these describe the user tokens this service verifies.
+  #     JWT_ISSUER: http://localhost:3001
+  #     JWT_AUDIENCE: fs-platform
+  #     # Verification only, so the private key is deliberately not passed here.
+  #     JWT_PUBLIC_KEY_B64: ${JWT_PUBLIC_KEY_B64:-}
+  #     # A separate pair from the user one, so a leak here cannot forge a user login.
+  #     SERVICE_JWT_PUBLIC_KEY_B64: ${SERVICE_JWT_PUBLIC_KEY_B64:-}
+  #     SERVICE_JWT_AUDIENCE: fs-platform-internal
+  #     SERVICE_JWT_ISSUERS: svc:be-project-service
+  #     IDENTITY_BASE_URL: http://be-identity-service:3001
+  #   ports:
+  #     - '3003:3003'
+  #   logging:
+  #     driver: json-file
+  #     options:
+  #       max-size: '10m'
+  #       max-file: '3'
+
   # Observability stack. Opt in with `docker compose --profile observability up -d`.
   loki:
     image: grafana/loki:3.7.6
@@ -163,6 +220,7 @@ services:
 volumes:
   identity-db-data:
   project-db-data:
+  workflow-db-data:
   loki-data:
   alloy-data:
   grafana-data:

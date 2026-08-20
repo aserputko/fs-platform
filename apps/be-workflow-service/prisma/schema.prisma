@@ -1,0 +1,181 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum StepType {
+  REQUESTOR
+  APPROVER
+}
+
+enum ActionType {
+  SUBMIT
+  APPROVE
+  REJECT
+  CANCEL
+}
+
+/// ActionType plus the transitions the engine records for itself.
+enum HistoryEventType {
+  SUBMIT
+  APPROVE
+  REJECT
+  CANCEL
+  STEP_ADVANCED
+}
+
+enum ActorRole {
+  REQUESTOR
+  APPROVER
+  SYSTEM
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum StepStatus {
+  PENDING
+  COMPLETED
+  SKIPPED
+  CANCELLED
+}
+
+enum TaskStatus {
+  PENDING
+  COMPLETED
+  SKIPPED
+  CANCELLED
+}
+
+enum CreatedVia {
+  USER
+  SERVICE
+}
+
+/// Template for an approval chain. Seeded, never edited through the API.
+model WorkflowDefinition {
+  id          String   @id @default(uuid(7))
+  key         String   @unique
+  name        String   @db.VarChar(256)
+  description String?  @db.VarChar(1024)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  steps StepTemplate[]
+
+  @@map("workflow_definitions")
+}
+
+/// One phase of a definition. `allowedActions` is a JSON array of { type, commentRequired }
+/// so that snapshotting it onto a request is a plain column copy.
+model StepTemplate {
+  id             String   @id @default(uuid(7))
+  definitionId   String
+  index          Int
+  name           String   @db.VarChar(256)
+  stepType       StepType
+  allowedActions Json
+
+  definition WorkflowDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+
+  @@unique([definitionId, index])
+  @@map("step_templates")
+}
+
+/// `requestorUserId` and every approver id are JWT `sub` values from be-identity-service.
+/// This service has no user table, so they are deliberately not foreign keys.
+model ApprovalRequest {
+  id                String        @id @default(uuid(7))
+  definitionId      String
+  definitionKey     String        @db.VarChar(128)
+  subject           String        @db.VarChar(256)
+  description       String        @db.VarChar(256)
+  requestorUserId   String
+  status            RequestStatus @default(PENDING)
+  currentStepIndex  Int
+  /// Optimistic lock: every transition bumps it, so simultaneous approvals cannot both win.
+  version           Int           @default(0)
+  sourceType        String?       @db.VarChar(64)
+  sourceId          String?       @db.VarChar(64)
+  createdVia        CreatedVia
+  createdByService  String?       @db.VarChar(128)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  closedAt          DateTime?
+
+  steps   ApprovalStep[]
+  tasks   ApprovalTask[]
+  history ApprovalHistoryEntry[]
+
+  @@index([requestorUserId, status])
+  @@index([sourceType, sourceId])
+  @@index([status, createdAt])
+  @@map("approval_requests")
+}
+
+/// Snapshot of a StepTemplate taken when the request is created, so later edits to a
+/// definition can never disturb an in-flight request.
+model ApprovalStep {
+  id                String     @id @default(uuid(7))
+  requestId         String
+  index             Int
+  name              String     @db.VarChar(256)
+  stepType          StepType
+  allowedActions    Json
+  status            StepStatus @default(PENDING)
+  completedAt       DateTime?
+  completedByUserId String?
+
+  request ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  tasks   ApprovalTask[]
+
+  @@unique([requestId, index])
+  @@map("approval_steps")
+}
+
+/// One row per (step, approver): the inbox is a single-table lookup on this model.
+model ApprovalTask {
+  id              String     @id @default(uuid(7))
+  requestId       String
+  stepId          String
+  approverUserId  String
+  status          TaskStatus @default(PENDING)
+  actedAt         DateTime?
+  createdAt       DateTime   @default(now())
+
+  request ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  step    ApprovalStep    @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@unique([stepId, approverUserId])
+  @@index([approverUserId, status])
+  @@map("approval_tasks")
+}
+
+/// Append-only audit trail. `actorUserId` is null for SYSTEM entries.
+model ApprovalHistoryEntry {
+  id          String           @id @default(uuid(7))
+  requestId   String
+  stepIndex   Int
+  eventType   HistoryEventType
+  actorUserId String?
+  actorRole   ActorRole
+  comment     String?          @db.VarChar(1024)
+  fromStatus  RequestStatus
+  toStatus    RequestStatus
+  createdAt   DateTime         @default(now())
+
+  request ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId, createdAt])
+  @@map("approval_history_entries")
+}

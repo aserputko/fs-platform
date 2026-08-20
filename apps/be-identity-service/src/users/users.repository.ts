@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import type { User as UserRecord } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { NewUser, User, normalizeEmail } from './domain/user.model';
+import type { UserSummaryDto } from './dto/user-summary.dto';
 import type { UserDto } from './dto/user.dto';
 
 // The read side never selects passwordHash, so it cannot leak through a profile response.
@@ -12,6 +13,12 @@ const PROFILE_SELECT = {
   displayName: true,
   role: true,
   createdAt: true,
+} as const;
+
+// Bulk lookups are display-only, so they never expose email.
+const SUMMARY_SELECT = {
+  id: true,
+  displayName: true,
 } as const;
 
 function toDomain(record: UserRecord): User {
@@ -59,5 +66,12 @@ export class UsersRepository {
 
   findProfile(id: string): Promise<UserDto | null> {
     return this.prisma.user.findUnique({ where: { id }, select: PROFILE_SELECT });
+  }
+
+  findSummaries(ids: string[]): Promise<UserSummaryDto[]> {
+    return this.prisma.user.findMany({
+      where: { id: { in: ids }, isActive: true },
+      select: SUMMARY_SELECT,
+    });
   }
 }

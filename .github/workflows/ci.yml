@@ -15,6 +15,7 @@ env:
   DATABASE_URL: postgresql://identity:identity@localhost:5432/identity_db?schema=public
   IDENTITY_DATABASE_URL: postgresql://identity:identity@localhost:5432/identity_db?schema=public
   PROJECT_DATABASE_URL: postgresql://project:project@localhost:5433/project_db?schema=public
+  WORKFLOW_DATABASE_URL: postgresql://workflow:workflow@localhost:5434/workflow_db?schema=public
 
 jobs:
   verify:
@@ -49,6 +50,20 @@ jobs:
           --health-timeout 5s
           --health-retries 10
 
+      workflow-postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: workflow
+          POSTGRES_PASSWORD: workflow
+          POSTGRES_DB: workflow_db
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U workflow -d workflow_db"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
 
@@ -75,6 +90,16 @@ jobs:
         env:
           DATABASE_URL: ${{ env.PROJECT_DATABASE_URL }}
 
+      - name: Apply workflow migrations
+        run: npm run db:migrate:deploy --workspace @fs-platform/be-workflow-service
+        env:
+          DATABASE_URL: ${{ env.WORKFLOW_DATABASE_URL }}
+
+      - name: Seed workflow definitions
+        run: npm run db:seed --workspace @fs-platform/be-workflow-service
+        env:
+          DATABASE_URL: ${{ env.WORKFLOW_DATABASE_URL }}
+
       # The e2e setups mint throwaway RS256 key pairs, so no signing secrets are needed here.
       - name: Identity e2e
         run: npm run test:e2e --workspace @fs-platform/be-identity-service
@@ -86,11 +111,16 @@ jobs:
         env:
           DATABASE_URL: ${{ env.PROJECT_DATABASE_URL }}
 
+      - name: Workflow e2e
+        run: npm run test:e2e --workspace @fs-platform/be-workflow-service
+        env:
+          DATABASE_URL: ${{ env.WORKFLOW_DATABASE_URL }}
+
   docker:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [be-identity-service, be-project-service]
+        service: [be-identity-service, be-project-service, be-workflow-service]
     steps:
       - uses: actions/checkout@v4
 
